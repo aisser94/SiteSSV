@@ -77,7 +77,10 @@ button,input,textarea{font:inherit;color:inherit}
 /* Downloaded-image-only mode: applied briefly to #sheet by downloadSnapshot() (app.js) right before
    capture, and removed right after. Collapses the card's normal bottom padding so the saved PNG ends
    just under the Notes field instead of leaving the usual ~1.15em card padding under it. */
-.sheet.exporting .body{padding-bottom:.3em}
+.sheet.exporting .body {
+  padding-bottom: 5px;
+}
+
 
 /* --------------------------------------------------------------- boxes -- */
 .box{border:.06em solid var(--line);border-radius:.45em;background:#fff}
