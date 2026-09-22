@@ -377,6 +377,10 @@
     el.snap.classList.add("busy");
     el.snap.disabled = true;
     const node = document.getElementById("sheet");
+    // Collapses the card's normal bottom padding (see .sheet.exporting in style.css) so the measurement
+    // below - and therefore the saved PNG - ends just under the Notes field, not after the usual card
+    // padding. Reverted in the `finally` block so the on-screen layout is untouched.
+    node.classList.add("exporting");
     try {
       const dataUrl = await domtoimage.toPng(node, {
         bgcolor: "#ffffff",
@@ -401,6 +405,7 @@
     } catch (e) {
       toast("Could not create the image", "err", e.message);
     } finally {
+      node.classList.remove("exporting");
       el.snap.classList.remove("busy");
       el.snap.disabled = !state.site;
     }
