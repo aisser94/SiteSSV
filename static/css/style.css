@@ -78,7 +78,8 @@ button,input,textarea{font:inherit;color:inherit}
    capture, and removed right after. Collapses the card's normal bottom padding so the saved PNG ends
    just under the Notes field instead of leaving the usual ~1.15em card padding under it. */
 .sheet.exporting .body {
-  padding-bottom: 5px;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 
