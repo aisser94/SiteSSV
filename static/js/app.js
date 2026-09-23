@@ -5,10 +5,10 @@
   const $ = (s) => document.querySelector(s);
   const el = {
     site: $("#siteInput"), clear: $("#clearBtn"), suggest: $("#suggest"), msg: $("#msg"),
-    region: $("#region"), city: $("#city"), x: $("#xCoord"), y: $("#yCoord"),
+region: $("#region"), city: $("#city"), x: $("#xCoord"), y: $("#yCoord"), gpsBox: $("#gpsBox"),
     table: $("#table"), caption: $("#caption"),
     notes: $("#notes"), saved: $("#saved"),
-    snap: $("#snapBtn"),
+galleryBtn: $("#galleryBtn"), shareBtn: $("#shareBtn"),
     drop: $("#drop"), fileInput: $("#fileInput"), dropTitle: $("#dropTitle"), dropHint: $("#dropHint"),
     progress: $("#progress"), bar: $("#progressBar"),
     stats: $("#stats"), statsLine: $("#statsLine"), statsSub: $("#statsSub"),
@@ -108,7 +108,8 @@
     el.x.value = site ? site.x : "";
     el.y.value = site ? site.y : "";
     renderTable(site);
-    el.snap.disabled = !site;
+el.galleryBtn.disabled = !site;
+el.shareBtn.disabled = !site;
 
     if (site) {
       const from = site.sources.join(", ");
@@ -359,58 +360,164 @@
     e.preventDefault(); dragDepth = 0; el.drop.classList.remove("over");
     upload(e.dataTransfer.files);
   });
-
-  /* ----------------------------------------------------------- snapshot -- */
+  /* --------------------------------------------------------------- gps -- */
+  async function copyCoords() {
+    if (!state.site) return;
+    const text = `${el.x.value},${el.y.value}`;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      toast("Coordinates copied — paste into Maps", "ok");
+    } catch (e) {
+      toast("Could not copy coordinates", "err", e.message);
+    }
+  }
+  el.gpsBox.addEventListener("click", copyCoords);
+    /* ----------------------------------------------------------- snapshot -- */
   // Sections left out of the exported image entirely (matches the print
   // stylesheet): the upload/data-source bar, and small in-page UI chrome
   // (clear button, suggestion dropdown, search status message).
   const SNAPSHOT_HIDE_IDS = new Set(["source"]);
   const SNAPSHOT_HIDE_CLASSES = ["clear", "suggest", "msg"];
 
-  async function downloadSnapshot() {
-    if (!state.site || el.snap.disabled) return;
-    if (typeof domtoimage === "undefined") {
-      toast("Image export isn't available", "err", "The snapshot library failed to load");
-      return;
+  async function captureSnapshotDataUrl() {
+  if (typeof domtoimage === "undefined") {
+    toast("Image export isn't available", "err", "The snapshot library failed to load");
+    return null;
+  }
+  flushNote();
+  const node = document.getElementById("sheet");
+
+  const hiddenEls = [];
+  SNAPSHOT_HIDE_IDS.forEach((id) => {
+    const n = document.getElementById(id);
+    if (n) hiddenEls.push(n);
+  });
+  SNAPSHOT_HIDE_CLASSES.forEach((cls) => {
+    document.querySelectorAll(`.${cls}`).forEach((n) => hiddenEls.push(n));
+  });
+  hiddenEls.forEach((n) => n.classList.add("snap-hide"));
+  node.classList.add("exporting");
+
+  try {
+    return await domtoimage.toPng(node, {
+      bgcolor: "#ffffff",
+      width: node.offsetWidth,
+      height: node.offsetHeight,
+	  scale: window.devicePixelRatio || 2,
+
+      style: { margin: "0", boxShadow: "none" },
+    });
+  } finally {
+    node.classList.remove("exporting");
+    hiddenEls.forEach((n) => n.classList.remove("snap-hide"));
+  }
+}
+
+  function setSnapBusy(btn, busy) {
+    btn.classList.toggle("busy", busy);
+    btn.disabled = busy || !state.site;
+  }
+
+    const GALLERY_ALBUM_NAME = "Telecom Site Sheets";
+  let galleryAlbumIdentifier = null;
+
+  async function getGalleryAlbumIdentifier(Media) {
+    if (galleryAlbumIdentifier) return galleryAlbumIdentifier;
+    let { albums } = await Media.getAlbums();
+    let album = (albums || []).find((a) => a.name === GALLERY_ALBUM_NAME);
+    if (!album) {
+      await Media.createAlbum({ name: GALLERY_ALBUM_NAME });
+      ({ albums } = await Media.getAlbums());
+      album = (albums || []).find((a) => a.name === GALLERY_ALBUM_NAME);
     }
-    flushNote();
-    el.snap.classList.add("busy");
-    el.snap.disabled = true;
-    const node = document.getElementById("sheet");
-    // Collapses the card's normal bottom padding (see .sheet.exporting in style.css) so the measurement
-    // below - and therefore the saved PNG - ends just under the Notes field, not after the usual card
-    // padding. Reverted in the `finally` block so the on-screen layout is untouched.
-    node.classList.add("exporting");
+    galleryAlbumIdentifier = album ? album.identifier : null;
+    return galleryAlbumIdentifier;
+  }
+
+  async function saveToGallery() {
+    if (!state.site || el.galleryBtn.disabled) return;
+    setSnapBusy(el.galleryBtn, true);
     try {
-      const dataUrl = await domtoimage.toPng(node, {
-        bgcolor: "#ffffff",
-        // The exporter copies the sheet's computed style into the image. Force zero margin (and no
-        // drop-shadow) on the exported copy and give it the exact size, so the sheet always fills
-        // the PNG edge-to-edge - never shifted to one side / cropped on the other.
-        width: node.offsetWidth,
-        height: node.offsetHeight,
-        style: { margin: "0", boxShadow: "none" },
-        filter: (n) => {
-          if (n.id && SNAPSHOT_HIDE_IDS.has(n.id)) return false;
-          if (n.classList) {
-            for (const c of SNAPSHOT_HIDE_CLASSES) { if (n.classList.contains(c)) return false; }
-          }
-          return true;
-        },
-      });
-      const link = document.createElement("a");
-      link.download = `${state.site.code || "site"}-parameters.png`;
-      link.href = dataUrl;
-      link.click();
+      const dataUrl = await captureSnapshotDataUrl();
+      if (!dataUrl) return;
+      const fileName = `${state.site.code || "site"}-parameters.png`;
+      const base64Data = dataUrl.split(",")[1];
+
+      const { Filesystem, Media } = window.Capacitor?.Plugins || {};
+      if (Filesystem && Media) {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: "CACHE",
+        });
+        const albumIdentifier = await getGalleryAlbumIdentifier(Media);
+        await Media.savePhoto({
+          path: result.uri,
+          albumIdentifier,
+          fileName: fileName.replace(/\.png$/i, ""),
+        });
+        toast("Saved to your gallery", "ok");
+      } else {
+        const link = document.createElement("a");
+        link.download = fileName;
+        link.href = dataUrl;
+        link.click();
+      }
     } catch (e) {
-      toast("Could not create the image", "err", e.message);
+      toast("Could not save the image", "err", e.message);
     } finally {
-      node.classList.remove("exporting");
-      el.snap.classList.remove("busy");
-      el.snap.disabled = !state.site;
+      setSnapBusy(el.galleryBtn, false);
     }
   }
-  el.snap.addEventListener("click", downloadSnapshot);
+
+  async function shareImage() {
+    if (!state.site || el.shareBtn.disabled) return;
+    setSnapBusy(el.shareBtn, true);
+    try {
+      const dataUrl = await captureSnapshotDataUrl();
+      if (!dataUrl) return;
+      const fileName = `${state.site.code || "site"}-parameters.png`;
+      const base64Data = dataUrl.split(",")[1];
+
+      const { Filesystem, Share } = window.Capacitor?.Plugins || {};
+      if (Filesystem && Share) {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: "CACHE",
+        });
+        await Share.share({
+          title: fileName,
+          url: result.uri,
+          dialogTitle: "Share image",
+        });
+      } else {
+        const link = document.createElement("a");
+        link.download = fileName;
+        link.href = dataUrl;
+        link.click();
+      }
+    } catch (e) {
+      toast("Could not share the image", "err", e.message);
+    } finally {
+      setSnapBusy(el.shareBtn, false);
+    }
+  }
+
+  el.galleryBtn.addEventListener("click", saveToGallery);
+  el.shareBtn.addEventListener("click", shareImage);
 
   /* --------------------------------------------------------------- boot -- */
   renderTable(null);
