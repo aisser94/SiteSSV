@@ -77,11 +77,7 @@ button,input,textarea{font:inherit;color:inherit}
 /* Downloaded-image-only mode: applied briefly to #sheet by downloadSnapshot() (app.js) right before
    capture, and removed right after. Collapses the card's normal bottom padding so the saved PNG ends
    just under the Notes field instead of leaving the usual ~1.15em card padding under it. */
-.sheet.exporting .body {
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-
+.sheet.exporting .body{padding-bottom:.3em}
 
 /* --------------------------------------------------------------- boxes -- */
 .box{border:.06em solid var(--line);border-radius:.45em;background:#fff}
@@ -135,13 +131,14 @@ button,input,textarea{font:inherit;color:inherit}
 
 /* ----------------------------------------------------------------- gps -- */
 .gps{display:grid;grid-template-columns:28% 1fr 1fr;align-items:stretch;background:#fff;overflow:hidden}
+.gps{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.gps:active{background:var(--soft)}
 .gps-title{display:flex;align-items:center;gap:.6em;padding:.7em 1em;background:var(--soft);
   border-right:.06em solid var(--line);font-size:1.3em;font-weight:700;letter-spacing:.01em;white-space:nowrap}
 .gps-title .ic{width:1.35em;height:1.35em}
 .gps-f{display:flex;align-items:center;gap:.7em;padding:.7em .9em}
 .gps-f label{font-size:1.15em;font-weight:500;white-space:nowrap}
 .gps-f .input{height:2.35em;font-size:1.1em}
-
 /* ------------------------------------------------------ parameter table -- */
 .tbl{--n:3;margin-top:.2em}
 .thead,.blk{display:grid;grid-template-columns:var(--c1) var(--c2) repeat(var(--n),minmax(0,1fr))}
@@ -196,10 +193,10 @@ button,input,textarea{font:inherit;color:inherit}
 .caption{margin-left:auto;text-align:right}
 
 /* --------------------------------------------------------------- notes -- */
-.notes{display:grid;grid-template-columns:4.4em 1fr;overflow:hidden}
-.notes-ico{background:var(--soft);border-right:.06em solid var(--line);display:grid;place-items:center;color:var(--navy)}
+.notes{display:flex;overflow:hidden}
+.notes-ico{flex:0 0 4.4em;background:var(--soft);border-right:.06em solid var(--line);display:grid;place-items:center;color:var(--navy)}
 .notes-ico .ic{width:2em;height:2em}
-.notes-body{position:relative;display:flex;align-items:flex-start;gap:.7em;padding:.75em 1em;min-height:3.6em}
+.notes-body{flex:1 1 auto;min-width:0;position:relative;display:flex;align-items:flex-start;gap:.7em;padding:.75em 1em;min-height:3.6em}
 .notes-body label{font-size:1.1em;font-weight:700;white-space:nowrap;line-height:1.5}
 .notes textarea{flex:1;border:0;outline:none;resize:vertical;background:transparent;font-size:1.1em;font-weight:500;
   line-height:1.5;min-height:2.6em;color:var(--navy);padding:0}
@@ -255,13 +252,16 @@ button,input,textarea{font:inherit;color:inherit}
 .no-files{color:var(--muted);text-align:center;padding:.6em}
 
 /* ---------------------------------------------------------- snap button -- */
-.snap-btn{position:fixed;top:1em;right:1em;z-index:60;width:2.8em;height:2.8em;border-radius:50%;
+.snap-actions{position:fixed;top:1em;right:1em;z-index:60;display:flex;gap:.6em}
+.snap-btn{width:2.8em;height:2.8em;border-radius:50%;
   border:.09em solid var(--navy);background:#fff;color:var(--navy);display:grid;place-items:center;
   cursor:pointer;box-shadow:0 .4em 1.2em rgba(10,42,108,.18);transition:background .15s,color .15s,opacity .15s}
 .snap-btn:hover:not(:disabled){background:var(--navy);color:#fff}
 .snap-btn .ic{width:1.4em;height:1.4em}
 .snap-btn:disabled{opacity:.4;cursor:not-allowed}
 .snap-btn.busy{pointer-events:none}
+.snap-btn.busy{pointer-events:none}
+.snap-hide{display:none!important}
 
 /* -------------------------------------------------------------- toasts -- */
 .toasts{position:fixed;right:1em;bottom:1em;z-index:100;display:flex;flex-direction:column;gap:.5em;max-width:min(26em,calc(100vw - 2em))}
@@ -300,6 +300,6 @@ button,input,textarea{font:inherit;color:inherit}
 }
 @media print{
   body{background:#fff;padding:0}
-  .source,.clear,.suggest,.toasts,.msg,.snap-btn{display:none!important}
+.source,.clear,.suggest,.toasts,.msg,.snap-actions{display:none!important}
   .sheet{box-shadow:none}
 }
